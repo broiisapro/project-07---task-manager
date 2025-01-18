@@ -1,14 +1,13 @@
-import tkinter as tk
-from tkinter import ttk, messagebox
+import customtkinter as ctk
 import json
-from datetime import datetime, timedelta
+from datetime import datetime
+from tkinter import messagebox, simpledialog
+
 
 TASKS_FILE = "tasks_v2.json"
 
 
-# Utility functions for task management
 def load_tasks():
-    """Load tasks from a file."""
     try:
         with open(TASKS_FILE, "r") as file:
             return json.load(file)
@@ -17,13 +16,11 @@ def load_tasks():
 
 
 def save_tasks(tasks):
-    """Save tasks to a file."""
     with open(TASKS_FILE, "w") as file:
         json.dump(tasks, file, indent=4)
 
 
 def validate_date(date_str):
-    """Validate a date in YYYY-MM-DD format."""
     try:
         datetime.strptime(date_str, "%Y-%m-%d")
         return True
@@ -38,114 +35,93 @@ class ToDoApp:
         self.tasks = load_tasks()
         self.theme = "light"
 
-        # Apply styling
-        self.style = ttk.Style()
-        self.apply_light_mode()
+        ctk.set_appearance_mode("light")
 
-        # Main UI Layout
         self.create_toolbar()
-        self.create_task_treeview()
+        self.create_task_frame()
         self.refresh_task_list()
 
     def create_toolbar(self):
-        """Create the toolbar with buttons, search bar, and dark mode toggle."""
-        toolbar = ttk.Frame(self.root)
-        toolbar.pack(side=tk.TOP, fill=tk.X)
+        toolbar = ctk.CTkFrame(self.root)
+        toolbar.pack(side="top", fill="x", padx=10, pady=5)
 
-        ttk.Button(toolbar, text="Add Task", command=self.add_task).pack(side=tk.LEFT, padx=5, pady=5)
-        ttk.Button(toolbar, text="Delete Task", command=self.delete_task).pack(side=tk.LEFT, padx=5, pady=5)
-        ttk.Button(toolbar, text="Mark Complete", command=self.mark_complete).pack(side=tk.LEFT, padx=5, pady=5)
-        ttk.Button(toolbar, text="Filter", command=self.filter_tasks).pack(side=tk.LEFT, padx=5, pady=5)
+        self.add_task_button = ctk.CTkButton(toolbar, text="Add Task", command=self.add_task)
+        self.add_task_button.pack(side="left", padx=5, pady=5)
 
-        # Search bar
-        self.search_var = tk.StringVar()
-        search_entry = ttk.Entry(toolbar, textvariable=self.search_var, width=30)
-        search_entry.pack(side=tk.RIGHT, padx=5, pady=5)
-        search_entry.insert(0, "Search...")
-        search_entry.bind("<FocusIn>", lambda e: search_entry.delete(0, tk.END))
-        search_entry.bind("<Return>", lambda e: self.search_tasks())
+        self.delete_task_button = ctk.CTkButton(toolbar, text="Delete Task", command=self.delete_task)
+        self.delete_task_button.pack(side="left", padx=5, pady=5)
 
-        ttk.Button(toolbar, text="Search", command=self.search_tasks).pack(side=tk.RIGHT, padx=5, pady=5)
+        self.mark_complete_button = ctk.CTkButton(toolbar, text="Mark Complete", command=self.mark_complete)
+        self.mark_complete_button.pack(side="left", padx=5, pady=5)
 
-        # Dark mode toggle
-        ttk.Checkbutton(
-            toolbar, text="Dark Mode", command=self.toggle_theme
-        ).pack(side=tk.RIGHT, padx=5, pady=5)
+        self.filter_button = ctk.CTkButton(toolbar, text="Filter", command=self.filter_tasks)
+        self.filter_button.pack(side="left", padx=5, pady=5)
 
-    def create_task_treeview(self):
-        """Create the Treeview widget to display tasks."""
-        columns = ("Name", "Deadline", "Category", "Priority", "Completed")
-        self.tree = ttk.Treeview(self.root, columns=columns, show="headings")
+        self.search_var = ctk.StringVar()
+        self.search_entry = ctk.CTkEntry(toolbar, textvariable=self.search_var, width=250)
+        self.search_entry.insert(0, "Search...")
+        self.search_entry.pack(side="right", padx=5, pady=5)
+        self.search_entry.bind("<FocusIn>", lambda e: self.search_entry.delete(0, "end"))
+        self.search_entry.bind("<Return>", lambda e: self.search_tasks())
 
-        for col in columns:
-            self.tree.heading(col, text=col)
-            self.tree.column(col, anchor="center")
+        self.search_button = ctk.CTkButton(toolbar, text="Search", command=self.search_tasks)
+        self.search_button.pack(side="right", padx=5, pady=5)
 
-        self.tree.heading("Priority", text="Priority (High/Med/Low)")
-        self.tree.pack(fill=tk.BOTH, expand=True)
+        self.dark_mode_checkbox = ctk.CTkCheckBox(toolbar, text="Dark Mode", command=self.toggle_theme)
+        self.dark_mode_checkbox.pack(side="right", padx=5, pady=5)
 
-    def apply_light_mode(self):
-        """Apply light mode styling."""
-        self.theme = "light"
-        self.style.theme_use("default")
-        self.style.configure(".", background="white", foreground="black")
+    def create_task_frame(self):
+        self.task_frame = ctk.CTkFrame(self.root)
+        self.task_frame.pack(fill="both", expand=True, padx=10, pady=10)
 
-    def apply_dark_mode(self):
-        """Apply dark mode styling."""
-        self.theme = "dark"
-        self.style.theme_use("clam")
-        self.style.configure(".", background="#2E2E2E", foreground="white")
-        self.tree.tag_configure("High", background="#660000", foreground="white")
-        self.tree.tag_configure("Medium", background="#666600", foreground="black")
-        self.tree.tag_configure("Low", background="#006600", foreground="white")
+        self.scrollable_frame = ctk.CTkScrollableFrame(self.task_frame)
+        self.scrollable_frame.pack(fill="both", expand=True)
 
     def toggle_theme(self):
-        """Toggle between light and dark modes."""
-        if self.theme == "light":
-            self.apply_dark_mode()
+        if ctk.get_appearance_mode() == "light":
+            ctk.set_appearance_mode("dark")
         else:
-            self.apply_light_mode()
+            ctk.set_appearance_mode("light")
 
     def refresh_task_list(self):
-        """Refresh the displayed tasks in the Treeview."""
-        self.tree.delete(*self.tree.get_children())
+        for widget in self.scrollable_frame.winfo_children():
+            widget.destroy()
+
         for task in self.tasks:
-            self.tree.insert(
-                "",
-                tk.END,
-                values=(
-                    task["name"],
-                    task["deadline"],
-                    task["category"],
-                    task["priority"],
-                    "✓" if task["completed"] else "✗",
-                ),
-                tags=(task["priority"]),
-            )
+            task_frame = ctk.CTkFrame(self.scrollable_frame)
+            task_frame.pack(fill="x", pady=5)
+
+            task_label = ctk.CTkLabel(task_frame, text=f"{task['name']} - {task['category']} - {task['deadline']}", anchor="w", width=300)
+            task_label.pack(side="left", padx=5)
+
+            task_status = "✓" if task['completed'] else "✗"
+            status_label = ctk.CTkLabel(task_frame, text=f"Completed: {task_status}", anchor="w")
+            status_label.pack(side="left", padx=5)
+
+            priority_label = ctk.CTkLabel(task_frame, text=f"Priority: {task['priority']}", anchor="w")
+            priority_label.pack(side="left", padx=5)
 
     def add_task(self):
-        """Open a dialog to add a new task."""
-        new_window = tk.Toplevel(self.root)
+        new_window = ctk.CTkToplevel(self.root)
         new_window.title("Add Task")
 
-        # Input fields
         fields = [("Task Name", "name"), ("Deadline (YYYY-MM-DD)", "deadline"), ("Category", "category")]
         entries = {}
 
         for i, (label_text, key) in enumerate(fields):
-            tk.Label(new_window, text=label_text).grid(row=i, column=0, sticky=tk.W)
-            entry = tk.Entry(new_window)
-            entry.grid(row=i, column=1)
+            ctk.CTkLabel(new_window, text=label_text).grid(row=i, column=0, sticky="w", padx=5, pady=5)
+            entry = ctk.CTkEntry(new_window)
+            entry.grid(row=i, column=1, padx=5, pady=5)
             entries[key] = entry
 
-        tk.Label(new_window, text="Priority:").grid(row=len(fields), column=0, sticky=tk.W)
-        priority = ttk.Combobox(new_window, values=["High", "Medium", "Low"])
-        priority.grid(row=len(fields), column=1)
+        ctk.CTkLabel(new_window, text="Priority:").grid(row=len(fields), column=0, sticky="w", padx=5, pady=5)
+        priority = ctk.CTkComboBox(new_window, values=["High", "Medium", "Low"])
+        priority.grid(row=len(fields), column=1, padx=5, pady=5)
         entries["priority"] = priority
 
-        tk.Label(new_window, text="Recurring (Days):").grid(row=len(fields) + 1, column=0, sticky=tk.W)
-        recurring = tk.Entry(new_window)
-        recurring.grid(row=len(fields) + 1, column=1)
+        ctk.CTkLabel(new_window, text="Recurring (Days):").grid(row=len(fields) + 1, column=0, sticky="w", padx=5, pady=5)
+        recurring = ctk.CTkEntry(new_window)
+        recurring.grid(row=len(fields) + 1, column=1, padx=5, pady=5)
         entries["recurring"] = recurring
 
         def save_new_task():
@@ -153,87 +129,88 @@ class ToDoApp:
             task["completed"] = False
             task["recurring"] = int(entries["recurring"].get()) if entries["recurring"].get().isdigit() else 0
 
-            # Validation
             if not validate_date(task["deadline"]):
                 messagebox.showerror("Error", "Invalid deadline format. Use YYYY-MM-DD.")
                 return
 
-            # Save task
             self.tasks.append(task)
             save_tasks(self.tasks)
             self.refresh_task_list()
             new_window.destroy()
 
-        ttk.Button(new_window, text="Save Task", command=save_new_task).grid(row=len(fields) + 2, columnspan=2)
+        save_button = ctk.CTkButton(new_window, text="Save Task", command=save_new_task)
+        save_button.grid(row=len(fields) + 2, columnspan=2, pady=10)
 
     def delete_task(self):
-        """Delete the selected task."""
-        selected = self.tree.selection()
-        if not selected:
-            messagebox.showerror("Error", "No task selected.")
+        selected_task = simpledialog.askstring("Delete Task", "Enter task name to delete:")
+        if not selected_task:
             return
 
-        for item in selected:
-            index = self.tree.index(item)
-            del self.tasks[index]
+        self.tasks = [task for task in self.tasks if task["name"].lower() != selected_task.lower()]
         save_tasks(self.tasks)
         self.refresh_task_list()
 
     def mark_complete(self):
-        """Mark the selected task as completed."""
-        selected = self.tree.selection()
-        if not selected:
-            messagebox.showerror("Error", "No task selected.")
+        selected_task = simpledialog.askstring("Mark Complete", "Enter task name to mark as completed:")
+        if not selected_task:
             return
 
-        for item in selected:
-            index = self.tree.index(item)
-            self.tasks[index]["completed"] = True
+        for task in self.tasks:
+            if task["name"].lower() == selected_task.lower():
+                task["completed"] = True
+                break
+
         save_tasks(self.tasks)
         self.refresh_task_list()
 
     def search_tasks(self):
-        """Search for tasks by name or category."""
         query = self.search_var.get().lower()
         results = [task for task in self.tasks if query in task["name"].lower() or query in task["category"].lower()]
 
-        self.tree.delete(*self.tree.get_children())
+        self.scrollable_frame.destroy()
+        self.scrollable_frame = ctk.CTkScrollableFrame(self.task_frame)
+        self.scrollable_frame.pack(fill="both", expand=True)
+
         for task in results:
-            self.tree.insert(
-                "",
-                tk.END,
-                values=(
-                    task["name"],
-                    task["deadline"],
-                    task["category"],
-                    task["priority"],
-                    "✓" if task["completed"] else "✗",
-                ),
-            )
+            task_frame = ctk.CTkFrame(self.scrollable_frame)
+            task_frame.pack(fill="x", pady=5)
+
+            task_label = ctk.CTkLabel(task_frame, text=f"{task['name']} - {task['category']} - {task['deadline']}", anchor="w", width=300)
+            task_label.pack(side="left", padx=5)
+
+            task_status = "✓" if task['completed'] else "✗"
+            status_label = ctk.CTkLabel(task_frame, text=f"Completed: {task_status}", anchor="w")
+            status_label.pack(side="left", padx=5)
+
+            priority_label = ctk.CTkLabel(task_frame, text=f"Priority: {task['priority']}", anchor="w")
+            priority_label.pack(side="left", padx=5)
 
     def filter_tasks(self):
-        """Filter tasks by category."""
-        category = tk.simpledialog.askstring("Filter", "Enter category:")
+        category = simpledialog.askstring("Filter", "Enter category:")
         if not category:
             return
 
         filtered = [task for task in self.tasks if task["category"].lower() == category.lower()]
-        self.tree.delete(*self.tree.get_children())
+        self.scrollable_frame.destroy()
+        self.scrollable_frame = ctk.CTkScrollableFrame(self.task_frame)
+        self.scrollable_frame.pack(fill="both", expand=True)
+
         for task in filtered:
-            self.tree.insert(
-                "",
-                tk.END,
-                values=(
-                    task["name"],
-                    task["deadline"],
-                    task["category"],
-                    task["priority"],
-                    "✓" if task["completed"] else "✗",
-                ),
-            )
+            task_frame = ctk.CTkFrame(self.scrollable_frame)
+            task_frame.pack(fill="x", pady=5)
+
+            task_label = ctk.CTkLabel(task_frame, text=f"{task['name']} - {task['category']} - {task['deadline']}", anchor="w", width=300)
+            task_label.pack(side="left", padx=5)
+
+            task_status = "✓" if task['completed'] else "✗"
+            status_label = ctk.CTkLabel(task_frame, text=f"Completed: {task_status}", anchor="w")
+            status_label.pack(side="left", padx=5)
+
+            priority_label = ctk.CTkLabel(task_frame, text=f"Priority: {task['priority']}", anchor="w")
+            priority_label.pack(side="left", padx=5)
 
 
 if __name__ == "__main__":
-    root = tk.Tk()
+    root = ctk.CTk()
     app = ToDoApp(root)
     root.mainloop()
