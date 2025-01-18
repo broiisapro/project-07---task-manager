@@ -50,3 +50,4 @@ pip install customtkinter
 4. **Theme Toggle**: Use the checkbox in the toolbar to toggle between **light mode** and **dark mode** it is a wip, and just the checkbox works.
 
 ---
+Readme made with the assistance of ai
